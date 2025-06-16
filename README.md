@@ -47,10 +47,3 @@ Developed for the *Data Analysis* course in the **Bachelor's Degree in Data Scie
 - `MASS` (LDA/QDA)
 - `ggplot2` for visualization
 
-## 👥 Authors
-- Adrián Cerezuela Hernández
-- Ramon Ventura Navarro
-
-## 📚 Course  
-**Data Analysis**  
-Universitat Politècnica de Catalunya (UPC)  
