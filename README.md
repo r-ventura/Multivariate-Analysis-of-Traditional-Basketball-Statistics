@@ -52,5 +52,5 @@ Developed for the *Data Analysis* course in the **Bachelor's Degree in Data Scie
 - Ramon Ventura Navarro
 
 ## 📚 Course  
-**Data Analysis** (*Análisis de Datos*)  
+**Data Analysis**  
 Universitat Politècnica de Catalunya (UPC)  
