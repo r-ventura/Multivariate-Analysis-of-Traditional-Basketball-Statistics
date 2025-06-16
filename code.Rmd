@@ -1,0 +1,527 @@
+---
+title: "Multivariate Data Analysis Project"
+author: "Adrián Cerezuela and Ramon Venutra"
+date: "5/22/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+setwd("~/Desktop/GCED/obsidian/GCED/Q4/AD/Multivariate_Analysis_Project/")
+```
+
+```{r}
+library(ggplot2)
+library(MASS)
+library(GGally)
+#library(tidyverse)
+library(factoextra)
+library(FactoMineR)
+library(cabootcrs)
+library(caret)
+library(cluster)
+library(kmed)
+library(fpc)
+#library(HSAUR)
+library(biotools)
+library(klaR)
+```
+
+
+### Dataset preprocessing
+
+Firstly, we read the dataset.
+```{r}
+data_acb <- read.csv("data_preprocessed.csv")
+head(data_acb)
+```
+
+With the help of the $\texttt{str()}$ function, the correct variable type will be assigned to each row.
+```{r}
+str(data_acb)
+```
+
+```{r}
+data_acb[,4] <- as.numeric(data_acb[,4])
+
+str(data_acb)
+```
+
+
+### PRINCIPAL COMPONENTS ANALYSIS (PCA)
+
+```{r}
+numerical_vars <- scale(data_acb[, c(3,4,7:21)])
+```
+
+```{r}
+pca_acb = prcomp(numerical_vars)
+```
+
+```{r}
+fviz_eig(pca_acb, addlabels = TRUE) # explained variability plot
+```
+
+```{r}
+biplot <- fviz_pca_biplot(pca_acb, repel = F, axes = c(2,3), col.var = "black",
+                          habillage = data_acb$Performance)
+# Needs to be reflected on both axis taking into account the contributions
+(reversed_biplot <- biplot + scale_x_reverse() + scale_y_reverse())
+```
+
+```{r}
+# Plot the PCA graph of variables
+var_plot <- fviz_pca_var(pca_acb,
+                         col.var = "contrib", # color variables by contribution
+                         gradient.cols = c("blue", "red"), # specify color gradient
+                         repel = TRUE # avoid overlapping labels
+)
+
+# Needs to be reflected too
+(reflected_var_plot <- var_plot + scale_x_reverse() + scale_y_reverse())
+```
+
+```{r}
+(loadings <- get_pca_var(pca_acb)$coord)
+```
+
+```{r}
+(contributions <- apply(pca_acb$rotation^2, 2, function(x) x/sum(x))*100)
+```
+```{r}
+(col_sums <- colSums(contributions))
+```
+
+
+
+### MULTIDIMENSIONAL SCALING (MDS)
+
+```{r}
+dist_matrix <- dist(numerical_vars, method = "euclidean")
+
+pos <- data_acb[,2]
+perf <- data_acb[,22]
+new_data = as.data.frame(numerical_vars)
+new_data$pos = as.factor(pos)
+new_data$perf = as.factor(perf)
+gower_dist <- daisy(new_data, metric = "gower")
+```
+
+```{r}
+mds_euc <- cmdscale(dist_matrix, eig=T, k = 2)
+mds_gow <- cmdscale(gower_dist, eig=T, k = 2)
+
+# Colors for each performance
+cluster_colors_perf <- c("red", "green", "blue")
+```
+
+
+```{r}
+#Cluster Performance
+mds_data1 <- data.frame(x = mds_euc$points[,1], y = mds_euc$points[,2], cluster = perf)
+mds_data2 <- data.frame(x = mds_gow$points[,1], y = mds_gow$points[,2], cluster = perf)
+
+par(mfrow=c(1,2))
+
+ggplot(mds_data1, aes(x = x, y = y, color = as.factor(cluster))) +
+  geom_point(size = 3) +
+  scale_color_manual(values = cluster_colors_perf) +
+  xlab("MDS Coordinate 1") +
+  ylab("MDS Coordinate 2") +
+  ggtitle("MDS Plot (Euclidean distance Matrix) with Clusters")
+
+ggplot(mds_data2, aes(x = x, y = y, color = as.factor(cluster))) +
+  geom_point(size = 3) +
+  scale_color_manual(values = cluster_colors_perf) +
+  xlab("MDS Coordinate 1") +
+  ylab("MDS Coordinate 2") +
+  ggtitle("MDS Plot (Gower Distance Matrix) with Clusters")
+
+par(mfrow=c(1,1))
+```
+
+```{r}
+# Label PPG
+ggplot(mds_data2, aes(x = x, y = y, label=data_acb[,7], color = as.factor(cluster))) +
+  geom_point(size = 2) +
+  geom_text(vjust=-0.5) +
+  scale_color_manual(values = cluster_colors_perf) +
+  xlab("MDS Coordinate 1") +
+  ylab("MDS Coordinate 2") +
+  ggtitle("MDS Plot with Clusters and PPG as labels")
+```
+```{r}
+# Label X3PT_Per
+ggplot(mds_data2, aes(x = x, y = y, label=data_acb[,10], color = as.factor(cluster))) +
+  geom_point(size = 2) +
+  geom_text(vjust=-0.5) +
+  scale_color_manual(values = cluster_colors_perf) +
+  xlab("MDS Coordinate 1") +
+  ylab("MDS Coordinate 2") +
+  ggtitle("MDS Plot with Clusters and X3PT_Per as labels")
+```
+```{r}
+# Label X2PT_Per
+ggplot(mds_data2, aes(x = x, y = y, label=data_acb[,11], color = as.factor(cluster))) +
+  geom_point(size = 2) +
+  geom_text(vjust=-0.5) +
+  scale_color_manual(values = cluster_colors_perf) +
+  xlab("MDS Coordinate 1") +
+  ylab("MDS Coordinate 2") +
+  ggtitle("MDS Plot with Clusters and X2PT_Per as labels")
+```
+```{r}
+# Label TR
+ggplot(mds_data2, aes(x = x, y = y, label=data_acb[,13], color = as.factor(cluster))) +
+  geom_point(size = 2) +
+  geom_text(vjust=-0.5) +
+  scale_color_manual(values = cluster_colors_perf) +
+  xlab("MDS Coordinate 1") +
+  ylab("MDS Coordinate 2") +
+  ggtitle("MDS Plot with Clusters and TR as labels")
+```
+```{r}
+# Label BLKF
+ggplot(mds_data2, aes(x = x, y = y, label=data_acb[,17], color = as.factor(cluster))) +
+  geom_point(size = 2) +
+  geom_text(vjust=-0.5) +
+  scale_color_manual(values = cluster_colors_perf) +
+  xlab("MDS Coordinate 1") +
+  ylab("MDS Coordinate 2") +
+  ggtitle("MDS Plot with Clusters and BLKF as labels")
+```
+```{r}
+# Label AST
+ggplot(mds_data2, aes(x = x, y = y, label=data_acb[,14], color = as.factor(cluster))) +
+  geom_point(size = 2) +
+  geom_text(vjust=-0.5) +
+  scale_color_manual(values = cluster_colors_perf) +
+  xlab("MDS Coordinate 1") +
+  ylab("MDS Coordinate 2") +
+  ggtitle("MDS Plot with Clusters and AST as labels")
+```
+
+## MCA
+
+```{r}
+## Indicator Matrix
+# ind_matrix <- tab.disjonctif(data_acb[, categorical_vars])
+```
+
+Correct data format:
+```{r}
+categorical_vars <- c("pos", "license", "club", "Performance")
+data_acb$pos <- as.factor(data_acb$pos)
+data_acb$license <- as.factor(data_acb$license)
+data_acb$club <- as.factor(data_acb$club)
+data_acb$Performance <- as.factor(data_acb$Performance)
+```
+
+MCA on categorical variables
+```{r}
+# MCA Application on Indicator Matrix
+res.mca <- MCA(data_acb[, categorical_vars]) # Cloud of individuals, variables
+# res.mca <- MCA(data_acb[, categorical_vars],method="Burt") # Using Burt Matrix instead
+
+# summary(res.mca)
+
+### Eigenvalues
+# res.mca$eig
+
+## Average eigenvalue
+```
+
+Eigenvalues
+```{r}
+sum(res.mca$eig[,1])/12
+sum(res.mca$eig[,2]) / length(res.mca$eig[,2]) # % variance
+barplot(res.mca$eig[,2],main="Eigenvalues", names.arg=1:nrow(res.mca$eig))
+```
+
+```{r}
+## Coordinates of categories
+res.mca$var$coord
+
+## Description of Dimensions
+dimdesc(res.mca)
+```
+
+```{r}
+rownames(res.mca$var$coord) # All the categories
+```
+
+Clouds of individuals
+```{r}
+### Clouds (besides from the ones generated from MCA())###
+## Colored cloud of Categories
+plot(res.mca, invisible = "ind",
+     col.var = c(rep("black", length(unique(data_acb$pos))),
+                 rep("red", length(unique(data_acb$license))),
+                 rep("blue", length(unique(data_acb$club))),
+                 rep("purple", length(unique(data_acb$Performance)))),
+     title = "Graph of the active categories")
+
+
+## Cloud of Individuals
+plot.MCA(res.mca,choix="ind",label="none")
+plot.MCA(res.mca,choix="ind",label="ind",invisible="var",habillage = "pos")
+plot.MCA(res.mca,choix="ind",label="ind",invisible="var",habillage = "license")
+plot.MCA(res.mca,choix="ind",label="ind",invisible="var",habillage = "club")
+plot.MCA(res.mca,choix="ind",label="ind",invisible="var",habillage = "Performance")
+```
+
+```{r}
+str(data_acb)
+```
+
+
+MCA on data_acb using numerical variables as supplementary
+```{r}
+res.mca <- MCA(data_acb[, -c(1,21)], quanti.sup=c(2:3,6:19))
+```
+
+Eigenvalues using supplementary variables:
+```{r}
+sum(res.mca$eig[,1])/12
+sum(res.mca$eig[,2]) / length(res.mca$eig[,2]) # % variance
+barplot(res.mca$eig[,2],main="Eigenvalues", names.arg=1:nrow(res.mca$eig))
+```
+
+
+### CLUSTER ANALYSIS
+
+We will perform clusters on the diferent teams we have, in order to asses which teams have better performers in their roster.
+
+```{r}
+data <- data_acb[, c(6,3,4,7:21)]
+averaged_data <- aggregate(. ~ club, data = data, FUN = mean)
+
+rownames(averaged_data)<-averaged_data[,1]
+data<-averaged_data[,-1]
+```
+
+Arbitrarily, we could think of at least k=3 clusters having in account a separation between an encompassed team performance
+
+```{r}
+k <- 3
+k3 <- kmeans(data, centers=k)
+aggregate(data,by=list(k3$cluster),FUN=mean)
+```
+
+
+```{r}
+fviz_cluster(k3, data, geom="point")
+```
+
+We can observe how data is not separed at all, so we perform an elbow plot and Pseudo-F Index plot in order to decide the optimal number of clusters.
+
+```{r}
+# Elbow plot
+aux<-c()
+for (i in 2:10){
+  k<-kmeans(data,centers=i,nstart=25)
+  # centers: number of clusters to create in the k-means algorithm
+  # nstart: number of random initializations to perform for the k-means algorithm. This helps find a good solution by avoiding local optima.
+  aux[i-1]<-k$tot.withinss
+}
+### Pseudo-F Index
+aux2<-c()
+for (i in 2:10){
+  k<-kmeans(data,centers=i,nstart=25)
+  aux2[i-1]<-((k$betweenss)*(nrow(data)-i))/((k$tot.withinss)*(i-1))
+}
+par(mfrow=c(1,2))
+plot(aux, xlab="Number of Clusters", ylab="TWSS", type="l", main="TWSS vs. number of clusters")
+plot(aux2, xlab="Number of Clusters", ylab="Pseudo-F", type="l", main="Pseudo F Index")
+par(mfrow=c(1,1))
+```
+From these two plots one can intuit that the optimal number of clusters are k=7. Let's see how k-means perform for 7 clusters and the difference with the previous one.
+
+```{r}
+k <- 7
+k7 <- kmeans(data, centers=k)
+fviz_cluster(k7, data, geom="point")
+```
+
+We can see how k=7 clusters does not bring any improvement from the first k=3 performed, so we are taking the first one. Through the principal components on our data (without aggregating), we can see how the clusters are separated.
+
+```{r}
+clusters <- k3$cluster
+pca_acb <- prcomp(data)
+pc_scores <- pca_acb$x
+
+(ggplot(data = as.data.frame(pc_scores), aes(x = PC1, y = PC2, color = as.factor(clusters))) +
+  geom_point() +
+  geom_text(aes(label = rownames(averaged_data))) +
+  geom_polygon(data = as.data.frame(pc_scores),
+               aes(x = PC1, y = PC2, fill = as.factor(clusters), group = as.factor(clusters)),
+               alpha = 0.2) +
+  scale_color_discrete(name = "Cluster") +
+  scale_fill_discrete(name = "Cluster") +
+  theme_bw())
+```
+Hierarchical Clustering
+
+```{r}
+d <- dist(data, method = "manhattan")
+```
+
+```{r}
+# Complete Linkage
+fit <- hclust(d, method="complete") 
+plot(fit, label=row.names(averaged_data), main="Dendrogram of Complete Linkage")
+rect.hclust(fit, k=3, border="blue")
+```
+
+```{r}
+# Average Linkage
+fit <- hclust(d, method="average") 
+plot(fit, label=row.names(averaged_data), main="Dendrogram of Average Linkage")
+rect.hclust(fit, k=3, border="blue")
+```
+```{r}
+cl = cutree(fit, k = 3)
+fviz_cluster(list(data = data, cluster = cl), geom="point")
+```
+
+### LDA/QDA
+
+```{r}
+lda_data <- data_acb[, c(3,4,7:22)]
+lda_data <- lda_data[,-17]
+```
+
+```{r}
+### Assumption 1: Normality ####
+## Checking histogram, qqplots and shapiro Wilk's test results
+par(mfrow = c(3,4)) 
+for (i in c(1:16)){ 
+  print(colnames(lda_data)[i])
+  print(shapiro.test(lda_data[,i])$p.value)
+  qqnorm(lda_data[,i],main=colnames(lda_data)[i])
+  hist(lda_data[,i], main=colnames(lda_data)[i])
+}
+```
+```{r}
+boxM(lda_data[,1:16],lda_data$Performance)
+```
+As percentages are not useful to predict the performance index rating of a player, and therefore not useful to predict our target variable, are not included in our model. An important reason for not doing it is also that observations are far from following a normal distribution.
+
+```{r}
+(acblda<-lda(Performance~height+age+PPG+FGM+FGA+TR+AST+STL+TOV+
+              BLKF+BLKA+FC+FD, data=lda_data))
+acblda$prior
+```
+```{r}
+acbpred<-predict(acblda)
+(confusionlda<-table(acbpred$class,data_acb$Performance))
+```
+```{r}
+# CCR
+(classrate<-sum(diag(confusionlda))/sum(confusionlda))
+```
+```{r}
+# CCR among groups
+(diag(prop.table(confusionlda, 1)))
+```
+
+```{r}
+(acbqda<-qda(Performance~height+age+PPG+FGM+FGA+TR+AST+STL+TOV+
+              BLKF+BLKA+FC+FD, data=lda_data))
+```
+```{r}
+qda.class <- predict (acbqda)
+(confusionqda<-table(qda.class$class,data_acb$Performance))
+```
+```{r}
+(classrate<-sum(diag(confusionqda))/sum(confusionqda))
+```
+
+```{r}
+# Plot the results of our classification prediction for LDA
+grouping_var <- lda_data$Performance
+
+plot_data <- data.frame(LDA = as.factor(acbpred$class), Performance = as.factor(grouping_var))
+
+# Plot using ggplot2
+ggplot(plot_data, aes(x = Performance, fill = LDA)) +
+  geom_bar(position = "fill") +
+  labs(x = "Performance", y = "Proportion") +
+  scale_fill_manual(values = c("red", "green", "blue"))
+```
+```{r}
+# Plot the results of our classification prediction for QDA
+plot_data <- data.frame(QDA = as.factor(qda.class$class), Performance = as.factor(grouping_var))
+
+# Plot using ggplot2
+ggplot(plot_data, aes(x = Performance, fill = QDA)) +
+  geom_bar(position = "fill") +
+  labs(x = "Performance", y = "Proportion") +
+  scale_fill_manual(values = c("red", "green", "blue"))
+```
+
+```{r}
+# Q=(n-ñk)^2/n(k-1)
+## compared with chi^2 value of (1,0.05)
+nyq<-sum(diag(confusionqda))
+nc<-nrow(lda_data)
+k<-3
+(Qcar<-((nc-nyq*k)^2)/(nc*(k-1)))
+```
+Too high, difference in cov matrices.
+
+
+```{r}
+### Naive Bayes Classification ##
+#acbnb<-naiveBayes(Performance~height+age+PPG+FGM+FGA+TR+AST+STL+TOV+
+ #             BLKF+BLKA+FC+FD, data=lda_data)
+
+#nb.class <- predict (acbnb , lda_data)
+#(confusionnb <- table(nb.class, data_acb$Performance))
+```
+```{r}
+#(classrate<-sum(diag(confusionnb))/sum(confusionnb))
+```
+
+```{r}
+# Stepwise Classification
+lda_data <- lda_data[,-c(6,7,8)]
+acbstep<-stepclass(lda_data[,1:13],lda_data$Performance,method="qda",direction="backward", criterion="CR") 
+
+acbstep$process
+acbstep$model
+acbstep$result.pm
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
